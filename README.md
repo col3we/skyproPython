@@ -27,6 +27,15 @@
 1. `mask_account_card(account_info)`: Скрывает часть информации о карте или счете.
 2. `get_date(date_str)`: Преобразует дату в более удобный формат (дд.мм.гггг).
 
+### generators.py
+1. `def filter_by_currency(transactions, currency_code)`:
+Эта функция фильтрует список транзакций по заданному коду валюты.`
+2. `def transaction_descriptions(transactions)`:
+Функция возвращает описание каждой транзакции из списка.
+3. `def card_number_generator(first_numb: int, second_numb: int)`
+Эта функция генерирует номера карт в указанном диапазоне.
+
+
 ### main.py
 Основной файл демонстрирует работу всех этих функций:
 - Маскировка номера карты,
@@ -53,6 +62,7 @@
 
 ## Тестирование
 
-- **processing.py**:  Тестирование Функции для фильтрации (`filter_by_state`) и сортировки (`sort_by_date`) данных.
-- **masks.py**: Тестирование Функция маскирования (`get_mask_card_number`, `get_mask_account`) чисел карт или счётов.
-- **widget.py**: Тестирование Вспомогательные функции (`mask_account_card`, `get_date`).
+- **test_processing.py**:  Тестирование Функции для фильтрации (`filter_by_state`) и сортировки (`sort_by_date`) данных.
+- **test_masks.py**: Тестирование Функция маскирования (`get_mask_card_number`, `get_mask_account`) чисел карт или счётов.
+- **test_widget.py**: Тестирование Вспомогательные функции (`mask_account_card`, `get_date`).
+- **test_generators.py**: Тестирует функции фильтрации транзакций и генерации номеров карт.
