@@ -13,7 +13,7 @@ transaction = {
       "amount": "87941.37",
       "currency": {
         "name": "руб.",
-        "code": "RUB"
+        "code": "USD"
       }
     },
     "description": "Перевод со счета на счет",
