@@ -1,53 +1,144 @@
-from src.masks import get_mask_card_number, get_mask_account
-from src.widget import get_date, mask_account_card
+import re
+
+from src.api import external_api
+from src.generators import filter_by_currency, transaction_descriptions
+from src.search import operation_finder
 from src.processing import filter_by_state, sort_by_date
+from src.readers import CSV_file_read, XLSX_file_read
+from src.utils import connect_to_json
+from src.widget import mask_account_card
 
 
-def main() -> None:
-    card_number = "7000792289606361"
-    masked_card_number = get_mask_card_number(card_number)
-    print(f"Маскированный номер карты: {masked_card_number}")
-
-    account_number = "73654108430135874305"
-    masked_account_number = get_mask_account(account_number)
-    print(f"Маскированный номер счета: {masked_account_number}")
-
-    cards = [
-        "Visa Platinum 7000792289606361",
-        "Maestro 7000792289606361",
-        "Счет 73654108430135874305"
-    ]
-
-    for card in cards:
-        masked = mask_account_card(card)
-        print(masked)
-
-    date_str = "2024-03-11T02:26:18.671407"
-    formatted_date = get_date(date_str)
-    print(formatted_date)
+def main_fail() -> str:
+    """
+    Если что-то не так, выводит ошибку.
+    """
+    return "Попробуйте ещё раз.\n"
 
 
-data = [
-    {'id': 41428829, 'state': 'EXECUTED', 'date': '2019-07-03T18:35:29.512364'},
-    {'id': 939719570, 'state': 'EXECUTED', 'date': '2018-06-30T02:08:58.425572'},
-    {'id': 594226727, 'state': 'CANCELED', 'date': '2018-09-12T21:27:25.241689'},
-    {'id': 615064591, 'state': 'CANCELED', 'date': '2018-10-14T08:21:33.419441'},
-]
+def file_format():
+    """
+    Определяет расширение файла, с которым будем работать.
+    """
+    print("Добрый день, вы попали в программу для работы с банковскими транзакциями.")
+    file = input(
+        """Выберите номер формата файла:
+    1. .json
+    2. .csv
+    3. .xlsx или .xls\n"""
+    )
+    if file == "1":
+        print("Для работы выбран файл с расширением .json.\n")
+        return connect_to_json('data/operations.json'), "json"
+    if file == "2":
+        print("Для работы выбран файл с расширением .csv.\n")
+        return CSV_file_read(), "csv"
+    if file == "3":
+        print("Для работы выбран excel файл.\n")
+        return XLSX_file_read(), "excel"
+    else:
+        print(main_fail())
+        file_format()
+        return [], ""
 
-print("Testing filter_by_state function with default state ('EXECUTED'):")
-filtered_data_default = filter_by_state(data)
-print("Filtered Data (state='EXECUTED'):", filtered_data_default)
 
-print("\nTesting filter_by_state function with state 'CANCELED':")
-filtered_data_canceled = filter_by_state(data, state='CANCELED')
-print("Filtered Data (state='CANCELED'):", filtered_data_canceled)
+def status_sort(data):
+    """
+    Сортировка по статусу операции.
+    """
+    print("Выберите статус, по которому произойдет фильтрация.")
+    status = input("Статусы: EXECUTED, CANCELED, PENDING\n")
 
-print("\nTesting sort_by_date function (descending):")
-sorted_data_descending = sort_by_date(data)
-print("Sorted Data (descending):", sorted_data_descending)
+    if status.upper() not in ("EXECUTED", "CANCELED", "PENDING"):
+        print("Недопустимый статус. Пожалуйста, выберите из предложенных вариантов.")
+        return status_sort(data)
+    return filter_by_state(data, status)
 
-sorted_data_ascending = sort_by_date(data, descending=False)
-print("\nSorted Data (ascending):", sorted_data_ascending)
+
+
+def date_sort(data):
+    """
+    Сортировка по дате.
+    """
+    user_sort = input("Отсортировать операции по дате? Да/Нет \n")
+    if user_sort.lower() == "да":
+        how_to_sort = input("По возрастанию(1) или по убыванию(2)?\n")
+        if how_to_sort.lower() == "1":
+            return sort_by_date(data)
+        elif how_to_sort.lower() == "2":
+            return sort_by_date(data, "decreasing")
+        else:
+            print(main_fail())
+            date_sort(data)
+            return []
+    elif user_sort.lower() == "нет":
+        return data
+    else:
+        print(main_fail())
+        date_sort(data)
+        return []
+
+
+def value(data, file_type):
+    """
+    Сортировка по валюте.
+    """
+    user_sort = input("Выводить только рублевые? Да/Нет \n")
+    if user_sort.lower() == "да":
+        sorted_data = []
+        for i in filter_by_currency(data, "RUB"):
+            sorted_data.append(i)
+        return sorted_data
+    elif user_sort.lower() == "нет":
+        return data
+    else:
+        print(main_fail())
+        value(data, file_type)
+        return []
+
+
+def word_sort(data):
+    """
+    Сортировка по ключевым словам введенными пользователем.
+    """
+    user_sort = input("Фильтровать по определенному слову? Да/Нет\n")
+    if user_sort.lower() == "да":
+        to_find = input("Введите требуемое описание\n")
+        return operation_finder(data, to_find)
+    elif user_sort.lower() == "нет":
+        return data
+    else:
+        print(main_fail())
+        word_sort(data)
+        return []
+
+
+def main():
+    """
+    Основная функция, запускающая все предыдущие и завершающая работу.
+    """
+    data, file_type = file_format()
+    data = status_sort(data)
+    data = date_sort(data)
+    data = value(data, file_type)
+    data = word_sort(data)
+
+    print("Секунду...")
+    if data and len(data) != 0:
+        print(f"Всего операций: {len(data)}\n")
+        for operation in data:
+            print(
+                operation["date"],
+                next(transaction_descriptions(data)),
+            )
+            if re.search("Перевод", operation["description"]):
+                print(mask_account_card(operation["from"]), " -> ", mask_account_card(operation["to"]))
+            else:
+                print(mask_account_card(operation["to"]))
+            print(f"Сумма: {external_api(operation)}руб. \n")
+    else:
+        print("Не найдено ни одной транзакции, подходящей под ваши условия фильтрации")
+
 
 if __name__ == "__main__":
     main()
